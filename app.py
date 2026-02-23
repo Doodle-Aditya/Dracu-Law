@@ -52,7 +52,7 @@ with st.sidebar:
     st.header("⚙️ Settings")
     model_choice = st.selectbox(
         "Choose LLM Model",
-        options=["llama3-8b-8192", "llama3-70b-8192", "mixtral-8x7b-32768"],
+        options=["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "openai/gpt-oss-20b","llama-3.1-8b-instant"],
         index=0,
         help="All models run via Groq for fast inference."
     )
