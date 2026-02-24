@@ -1,8 +1,8 @@
-streamlit>=1.32.0
-pymupdf>=1.23.0
-groq>=0.5.0
-python-dotenv>=1.0.0
-
+streamlit==1.36.0
+python-dotenv==1.0.1
+groq==0.9.0
+PyMuPDF==1.24.9
+python-docx==1.1.2
 # Uncomment below if you switch to Gemini or Mistral
 # google-generativeai>=0.4.0
 # mistralai>=0.1.0
