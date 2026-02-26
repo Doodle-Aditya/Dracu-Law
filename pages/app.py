@@ -17,6 +17,17 @@ st.set_page_config(page_title="Dracu-Law", page_icon="⚖️", layout="wide")
 if not st.session_state.get("logged_in", False):
     st.switch_page("landing.py")
 
+# ---------- HANDLE QUERY PARAM NAV ----------
+if st.query_params.get("goto") == "home":
+    st.query_params.clear()
+    st.switch_page("landing.py")
+
+if st.query_params.get("logout") == "true":
+    st.session_state.logged_in = False
+    st.session_state.username = ""
+    st.query_params.clear()
+    st.switch_page("landing.py")
+
 # ---------- LOGO ----------
 def get_base64_image(path):
     try:
@@ -49,36 +60,6 @@ body, .stApp {
     pointer-events: none; z-index: 0;
 }
 
-/* ── NAVBAR ── */
-.dracu-nav {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 48px;
-    height: 68px;
-    background: rgba(10,10,11,0.97);
-    border-bottom: 1px solid #2a2a2e;
-    position: sticky; top: 0; z-index: 99;
-    backdrop-filter: blur(18px);
-}
-.dracu-brand {
-    font-family: 'Playfair Display', serif;
-    font-size: 24px; font-weight: 900;
-    color: #fff; letter-spacing: -0.5px;
-}
-.dracu-brand span { color: #e74c3c; }
-.nav-tagline { font-size: 11px; color: #555; letter-spacing: 1.4px; text-transform: uppercase; margin-top: 2px; }
-.nav-right { display: flex; align-items: center; gap: 10px; }
-
-/* User badge */
-.nav-user-badge {
-    background: rgba(192,57,43,0.12);
-    border: 1px solid rgba(192,57,43,0.3);
-    border-radius: 100px; padding: 6px 14px;
-    font-size: 13px; color: #f07a6a; font-weight: 600;
-    white-space: nowrap;
-}
-
-/* nav button placeholders — actual styles injected via JS below */
-
 /* ── PAGE TITLE ── */
 .page-title { text-align: center; padding: 30px 24px 6px; }
 .page-title h1 {
@@ -87,7 +68,7 @@ body, .stApp {
     font-weight: 900; color: #fff;
     letter-spacing: -1.5px; margin: 0;
 }
-.page-title p { font-size: 15px; color: #666; margin-top: 8px; }
+.page-title p { font-size: 15px; color: #888; margin-top: 8px; }
 
 /* ── SIDEBAR ── */
 [data-testid="stSidebar"] { background: #0f0f11 !important; border-right: 1px solid #222 !important; }
@@ -113,27 +94,27 @@ body, .stApp {
 div[data-testid="stTabs"] { margin-top: 12px; }
 div[data-testid="stTabs"] button {
     font-family: 'DM Sans', sans-serif !important;
-    font-size: 14px !important; font-weight: 600 !important; color: #555 !important;
+    font-size: 14px !important; font-weight: 600 !important; color: #888 !important;
     padding: 10px 20px !important; background: transparent !important; border: none !important;
 }
-div[data-testid="stTabs"] button[aria-selected="true"] { color: #e74c3c !important; border-bottom: 2px solid #e74c3c !important; }
+div[data-testid="stTabs"] button[aria-selected="true"] {
+    color: #e74c3c !important; border-bottom: 2px solid #e74c3c !important;
+}
 div[data-testid="stTabs"] [data-testid="stTabsContent"] {
     background: #0d0d0f; border: 1px solid #1e1e22;
     border-radius: 0 0 12px 12px; padding: 28px 24px;
 }
 
-/* ── FILE UPLOADER — dark + solid orange border ── */
+/* ── FILE UPLOADER ── */
 [data-testid="stFileUploader"] {
     background: transparent !important;
     border-radius: 12px !important;
 }
-/* Outer section wrapper */
 [data-testid="stFileUploader"] > section {
     background: #131316 !important;
     border: 2px solid #e07a3a !important;
     border-radius: 12px !important;
 }
-/* The drag-drop dropzone box */
 [data-testid="stFileUploaderDropzone"] {
     background: #131316 !important;
     border: 2px solid #e07a3a !important;
@@ -145,7 +126,6 @@ div[data-testid="stTabs"] [data-testid="stTabsContent"] {
     background: #17130f !important;
     box-shadow: 0 0 16px rgba(224,122,58,0.2) !important;
 }
-/* ALL text inside the uploader — white */
 [data-testid="stFileUploader"] label,
 [data-testid="stFileUploader"] span,
 [data-testid="stFileUploader"] p,
@@ -156,14 +136,12 @@ div[data-testid="stTabs"] [data-testid="stTabsContent"] {
     color: #ffffff !important;
     background: transparent !important;
 }
-/* "Drag and drop" label above the box */
 [data-testid="stFileUploader"] > label {
     color: #e8e4dc !important;
     font-family: 'DM Sans', sans-serif !important;
     font-size: 14px !important;
     font-weight: 500 !important;
 }
-/* Browse files button */
 [data-testid="stFileUploaderDropzone"] button,
 [data-testid="stFileUploader"] section button {
     background: rgba(224,122,58,0.12) !important;
@@ -185,30 +163,138 @@ div[data-testid="stTabs"] [data-testid="stTabsContent"] {
     box-shadow: 0 0 12px rgba(224,122,58,0.3) !important;
     transform: none !important;
 }
-/* Uploaded file pill */
 [data-testid="stFileUploaderFile"] {
     background: #1c1c20 !important;
     border: 1px solid #333 !important;
     border-radius: 8px !important;
 }
 [data-testid="stFileUploaderFile"] span,
-[data-testid="stFileUploaderFile"] p {
-    color: #e0dbd2 !important;
-}
-/* Delete (×) button */
+[data-testid="stFileUploaderFile"] p { color: #e0dbd2 !important; }
 [data-testid="stFileUploaderDeleteBtn"] button {
-    background: transparent !important;
-    border: none !important;
-    color: #666 !important;
+    background: transparent !important; border: none !important; color: #666 !important;
     width: auto !important; min-width: unset !important;
 }
 [data-testid="stFileUploaderDeleteBtn"] button:hover {
-    color: #e74c3c !important;
-    box-shadow: none !important; transform: none !important;
-    background: transparent !important;
+    color: #e74c3c !important; box-shadow: none !important;
+    transform: none !important; background: transparent !important;
 }
 
-/* main action buttons — styles injected via JS below */
+/* ── ALL MAIN BUTTONS ── */
+.stButton > button {
+    background: #d4601e !important;
+    background-image: linear-gradient(180deg, #e8722a 0%, #c4581a 100%) !important;
+    border-top: 1px solid #f0844a !important;
+    border-left: 1px solid #c85010 !important;
+    border-right: 1px solid #c85010 !important;
+    border-bottom: 4px solid #7a3008 !important;
+    border-radius: 8px !important;
+    padding: 11px 32px 12px !important;
+    min-width: 160px !important;
+    width: auto !important;
+    color: #ffffff !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 15px !important;
+    letter-spacing: 0.3px !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5) !important;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.4), 0 6px 24px rgba(200,80,20,0.45) !important;
+    cursor: pointer !important;
+    transition: all 0.1s ease !important;
+    position: relative !important;
+    top: 0 !important;
+}
+.stButton > button p,
+.stButton > button span {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    font-size: 15px !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5) !important;
+}
+.stButton > button:hover {
+    background: #e06e28 !important;
+    background-image: linear-gradient(180deg, #f07e38 0%, #d06820 100%) !important;
+    border-top-color: #ffaa70 !important;
+    border-bottom-color: #6a2800 !important;
+    top: -1px !important;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.4), 0 10px 30px rgba(200,80,20,0.6) !important;
+}
+.stButton > button:active {
+    background-image: linear-gradient(180deg, #c05010 0%, #d46020 100%) !important;
+    border-top-color: #a04010 !important;
+    border-bottom-width: 1px !important;
+    top: 3px !important;
+    box-shadow: 0 1px 6px rgba(200,80,20,0.3) !important;
+}
+
+/* ── SIDEBAR BUTTON OVERRIDE ── */
+[data-testid="stSidebar"] .stButton > button {
+    background: #1a1a1e !important;
+    background-image: none !important;
+    border: 1px solid #2a2a2e !important;
+    border-bottom: 1px solid #2a2a2e !important;
+    color: #bbb !important;
+    font-weight: 500 !important;
+    font-size: 14px !important;
+    padding: 10px !important;
+    min-width: unset !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    top: 0 !important;
+}
+[data-testid="stSidebar"] .stButton > button p,
+[data-testid="stSidebar"] .stButton > button span {
+    color: #bbb !important;
+    font-weight: 500 !important;
+    text-shadow: none !important;
+}
+[data-testid="stSidebar"] .stButton > button:hover {
+    background: rgba(192,57,43,0.14) !important;
+    background-image: none !important;
+    border-color: rgba(192,57,43,0.4) !important;
+    border-bottom-color: rgba(192,57,43,0.4) !important;
+    color: #fff !important;
+    box-shadow: none !important;
+    top: 0 !important;
+}
+
+/* ── DOWNLOAD BUTTON ── */
+[data-testid="stDownloadButton"] > button {
+    background: #1a4a7a !important;
+    background-image: linear-gradient(180deg, #2060a0 0%, #163d6a 100%) !important;
+    border-top: 1px solid #3a80cc !important;
+    border-left: 1px solid #1a4a7a !important;
+    border-right: 1px solid #1a4a7a !important;
+    border-bottom: 4px solid #0a2040 !important;
+    color: #a8d8ff !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    padding: 10px 24px 11px !important;
+    width: auto !important;
+    min-width: unset !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5) !important;
+    box-shadow: 0 4px 18px rgba(20,80,160,0.45) !important;
+    cursor: pointer !important;
+    transition: all 0.1s ease !important;
+    position: relative !important;
+    top: 0 !important;
+}
+[data-testid="stDownloadButton"] > button:hover {
+    background-image: linear-gradient(180deg, #2a70ba 0%, #1c4e8a 100%) !important;
+    border-top-color: #60a8ff !important;
+    top: -1px !important;
+    box-shadow: 0 6px 24px rgba(20,80,160,0.6) !important;
+    color: #cceeff !important;
+}
+[data-testid="stDownloadButton"] > button:active {
+    border-bottom-width: 1px !important;
+    top: 3px !important;
+    box-shadow: 0 1px 6px rgba(20,80,160,0.3) !important;
+}
+[data-testid="stDownloadButton"] > button p {
+    color: #a8d8ff !important;
+    font-weight: 600 !important;
+}
 
 /* ── ALERTS ── */
 .stAlert { border-radius: 9px !important; }
@@ -236,158 +322,99 @@ textarea {
     font-family: 'DM Sans', sans-serif !important;
 }
 
-/* ── CHECKBOXES — white text ── */
+/* ── CHECKBOXES ── */
 .stCheckbox label,
 .stCheckbox label p,
 .stCheckbox span,
 [data-testid="stCheckbox"] label,
 [data-testid="stCheckbox"] span {
-    color: #ffffff !important;
+    color: #e8e4dc !important;
     font-size: 14px !important;
 }
 
-/* ── DOWNLOAD BUTTON ── */
-[data-testid="stDownloadButton"] button {
-    background: #1a1a1e !important; border: 1px solid #2a2a2e !important;
-    color: #bbb !important; border-radius: 9px !important;
-    font-size: 14px !important; width: auto !important; min-width: unset !important;
-}
-[data-testid="stDownloadButton"] button:hover {
-    border-color: rgba(192,57,43,0.45) !important; color: #fff !important;
-    background: rgba(192,57,43,0.1) !important; box-shadow: none !important;
-    transform: none !important;
-}
-
 /* ── DIVIDER ── */
-hr { border-color: #1e1e22 !important; }
+hr { border-color: #2a2a38 !important; }
 
 /* ── FOOTER ── */
 .dracu-footer {
     text-align: center; padding: 30px;
     border-top: 1px solid #1e1e22;
-    color: #444; font-size: 13px; margin-top: 20px;
+    color: #666; font-size: 13px; margin-top: 20px;
 }
-.dracu-footer strong { color: #666; }
+.dracu-footer strong { color: #888; }
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- NAVBAR (pure HTML — buttons handled via Streamlit placeholders) ----------
-username  = st.session_state.get("username", "User")
-logo_html = f'<img src="data:image/png;base64,{logo}" style="height:46px;margin-right:6px;">' if logo else "⚖️"
+# ---------- NAVBAR ----------
+username = st.session_state.get("username", "User")
+logo_html = f'<img src="data:image/png;base64,{logo}" style="height:46px;margin-right:10px;vertical-align:middle;">' if logo else "⚖️"
 
-# We inject nav HTML, then put the interactive buttons INSIDE the nav visually
-# via a fixed-position container trick with st.columns for the clickable parts
-st.markdown(f"""
-<div class="dracu-nav">
-    <div style="display:flex;align-items:center;gap:12px;">
+nav_left, nav_right = st.columns([3, 1])
+
+with nav_left:
+    st.markdown(f"""
+    <div style="display:flex;align-items:center;padding:10px 0px;height:68px;">
         {logo_html}
         <div>
-            <div class="dracu-brand">Dracu<span>-Law</span></div>
-            <div class="nav-tagline">AI Legal Intelligence Engine</div>
+            <div style="font-family:'Playfair Display',serif;font-size:24px;font-weight:900;color:#fff;letter-spacing:-0.5px;">
+                Dracu<span style="color:#e74c3c;">-Law</span>
+            </div>
+            <div style="font-size:10px;color:#7a7a8a;letter-spacing:1.4px;text-transform:uppercase;margin-top:1px;">
+                AI Legal Intelligence Engine
+            </div>
         </div>
     </div>
-    <div class="nav-right" id="nav-right-slot">
-        <span class="nav-user-badge">👤 {username}</span>
+    """, unsafe_allow_html=True)
+
+with nav_right:
+    # Pure HTML links — completely bypasses Streamlit button styling
+    st.markdown(f"""
+    <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;height:68px;">
+        <span style="background:rgba(192,57,43,0.12);border:1px solid rgba(192,57,43,0.3);
+            border-radius:100px;padding:5px 12px;font-size:12px;color:#f07a6a;
+            font-weight:600;white-space:nowrap;">
+            👤 {username}
+        </span>
+        <a href="/?goto=home" target="_self" style="
+            display:inline-block;
+            background:transparent;
+            border:1px solid #3a3a48;
+            border-radius:5px;
+            color:#b0a898;
+            font-size:11px;
+            font-weight:500;
+            padding:5px 10px;
+            text-decoration:none;
+            white-space:nowrap;
+            font-family:'DM Sans',sans-serif;
+            line-height:1.4;
+            cursor:pointer;
+        " onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='#e0dbd2';this.style.borderColor='#555560';"
+           onmouseout="this.style.background='transparent';this.style.color='#b0a898';this.style.borderColor='#3a3a48';">
+            🏠 Home
+        </a>
+        <a href="/?logout=true" target="_self" style="
+            display:inline-block;
+            background:transparent;
+            border:1px solid #3a3a48;
+            border-radius:5px;
+            color:#b0a898;
+            font-size:11px;
+            font-weight:500;
+            padding:5px 10px;
+            text-decoration:none;
+            white-space:nowrap;
+            font-family:'DM Sans',sans-serif;
+            line-height:1.4;
+            cursor:pointer;
+        " onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='#e0dbd2';this.style.borderColor='#555560';"
+           onmouseout="this.style.background='transparent';this.style.color='#b0a898';this.style.borderColor='#3a3a48';">
+            Log Out
+        </a>
     </div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-# Streamlit buttons rendered just below navbar, floated right with CSS trick
-st.markdown("""
-<style>
-/* Pull nav buttons row up to sit inside navbar */
-div[data-testid="stHorizontalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] > div[data-testid="element-container"] > div.nav-action-home) {
-    position: relative;
-    margin-top: -56px !important;
-    z-index: 100;
-    pointer-events: none;
-}
-div[data-testid="stHorizontalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] > div[data-testid="element-container"] > div.nav-action-home) > div {
-    pointer-events: all;
-}
-div[data-testid="stHorizontalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] > div[data-testid="element-container"] > div.nav-action-home) > div:nth-child(1),
-div[data-testid="stHorizontalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] > div[data-testid="element-container"] > div.nav-action-home) > div:nth-child(2) {
-    visibility: hidden;
-}
-</style>
-
-<script>
-(function() {
-    const ORANGE = 'linear-gradient(135deg, #c0621a, #e07a3a)';
-    const ORANGE_HOVER = 'linear-gradient(135deg, #d06e20, #f08840)';
-    const ORANGE_SOLID = '#e07a3a';
-    const ORANGE_HOVER_SOLID = '#f08840';
-
-    function styleBtn(btn, radius, minWidth) {
-        btn.style.setProperty('background', ORANGE, 'important');
-        btn.style.setProperty('background-color', ORANGE_SOLID, 'important');
-        btn.style.setProperty('border', '1px solid ' + ORANGE_SOLID, 'important');
-        btn.style.setProperty('color', '#ffffff', 'important');
-        btn.style.setProperty('font-family', 'DM Sans, sans-serif', 'important');
-        btn.style.setProperty('font-weight', '600', 'important');
-        btn.style.setProperty('border-radius', radius, 'important');
-        btn.style.setProperty('transition', 'all 0.2s ease', 'important');
-        if (minWidth) btn.style.setProperty('min-width', minWidth, 'important');
-        // style inner p tag
-        const p = btn.querySelector('p');
-        if (p) p.style.setProperty('color', '#ffffff', 'important');
-
-        btn.addEventListener('mouseenter', () => {
-            btn.style.setProperty('background', ORANGE_HOVER, 'important');
-            btn.style.setProperty('background-color', ORANGE_HOVER_SOLID, 'important');
-            btn.style.setProperty('border-color', '#ff8c45', 'important');
-            btn.style.setProperty('box-shadow', '0 0 20px rgba(224,122,58,0.45)', 'important');
-            btn.style.setProperty('transform', 'translateY(-1px)', 'important');
-        }, {passive:true});
-        btn.addEventListener('mouseleave', () => {
-            btn.style.setProperty('background', ORANGE, 'important');
-            btn.style.setProperty('background-color', ORANGE_SOLID, 'important');
-            btn.style.setProperty('border-color', ORANGE_SOLID, 'important');
-            btn.style.setProperty('box-shadow', 'none', 'important');
-            btn.style.setProperty('transform', 'none', 'important');
-        }, {passive:true});
-        btn.dataset.oranged = '1';
-    }
-
-    function applyAll() {
-        // Nav buttons
-        document.querySelectorAll('.nav-action-home button, .nav-action-logout button').forEach(btn => {
-            if (btn.dataset.oranged) return;
-            btn.style.setProperty('padding', '8px 20px', 'important');
-            btn.style.setProperty('font-size', '13px', 'important');
-            styleBtn(btn, '7px', 'unset');
-        });
-        // Tab action buttons (Analyze, Compare Now, Generate Improved Version)
-        document.querySelectorAll('[data-testid="stTabsContent"] button').forEach(btn => {
-            if (btn.dataset.oranged) return;
-            btn.style.setProperty('padding', '12px 28px', 'important');
-            btn.style.setProperty('font-size', '15px', 'important');
-            styleBtn(btn, '9px', '150px');
-        });
-    }
-
-    // Run immediately and on every DOM mutation
-    applyAll();
-    const obs = new MutationObserver(applyAll);
-    obs.observe(document.body, {childList: true, subtree: true});
-})();
-</script>
-""", unsafe_allow_html=True)
-
-_gap, _gap2, col_home, col_logout = st.columns([5, 2, 0.55, 0.6])
-with col_home:
-    st.markdown('<div class="nav-action-home">', unsafe_allow_html=True)
-    if st.button("Home", key="nav_home"):
-        st.switch_page("landing.py")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-with col_logout:
-    st.markdown('<div class="nav-action-logout">', unsafe_allow_html=True)
-    if st.button("Log Out", key="nav_logout"):
-        st.session_state.logged_in = False
-        st.session_state.username  = ""
-        st.switch_page("landing.py")
-    st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("<hr style='border-color:#2a2a2e;margin:0 0 8px 0;'>", unsafe_allow_html=True)
 
 # ---------- PAGE TITLE ----------
 st.markdown("""
@@ -508,7 +535,7 @@ with tab1:
         st.success("✅ File uploaded successfully.")
         file_hash = get_file_hash(uploaded_file)
 
-        if st.button("Analyze", key="btn_analyze"):
+        if st.button("🔬 Analyze Contract", key="btn_analyze"):
             for key in ["last_contract", "last_flags", "last_hash", "last_result"]:
                 st.session_state.pop(key, None)
             try:
@@ -557,7 +584,7 @@ with tab2:
         st.warning("📂 Please upload **Contract A** to continue.")
 
     if f1 and f2:
-        if st.button("Compare Now", key="btn_compare"):
+        if st.button("⚖️ Compare Contracts", key="btn_compare"):
             try:
                 with st.spinner("Extracting text from both contracts..."):
                     t1 = extract_text(f1)
@@ -641,7 +668,7 @@ with tab3:
             if st.checkbox(flag, key=flag_key):
                 chosen.append(flag)
 
-        if st.button("Generate Improved Version", key="btn_improve"):
+        if st.button("✍️ Generate Improved Version", key="btn_improve"):
             if not chosen:
                 st.warning("Please select at least one clause to improve.")
             else:
@@ -675,6 +702,6 @@ with tab3:
 st.markdown("""
 <div class="dracu-footer">
     ⚖️ <strong>Dracu-Law</strong> &nbsp;·&nbsp; Powered by <strong>Groq LLMs</strong> &nbsp;·&nbsp; Built with <strong>Streamlit</strong><br>
-    <span style="font-size:11px;color:#2e2e2e;">AI-generated analysis is not a substitute for professional legal advice.</span>
+    <span style="font-size:11px;color:#444;">AI-generated analysis is not a substitute for professional legal advice.</span>
 </div>
 """, unsafe_allow_html=True)

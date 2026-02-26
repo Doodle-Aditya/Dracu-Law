@@ -1,17 +1,17 @@
 import streamlit as st
 import hashlib
 import sqlite3
-import os
 
 st.set_page_config(page_title="Dracu-Law", page_icon="⚖️", layout="wide")
 
-# ---------- SQLITE AUTH ----------
+# =========================================================
+# DATABASE
+# =========================================================
 DB_FILE = "dracu_users.db"
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("""
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
             name       TEXT NOT NULL,
@@ -23,14 +23,13 @@ def init_db():
     conn.commit()
     conn.close()
 
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+def hash_password(pw):
+    return hashlib.sha256(pw.encode()).hexdigest()
 
 def register_user(name, email, password):
     conn = sqlite3.connect(DB_FILE)
     try:
-        c = conn.cursor()
-        c.execute(
+        conn.execute(
             "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
             (name, email.lower().strip(), hash_password(password))
         )
@@ -43,469 +42,539 @@ def register_user(name, email, password):
 
 def login_user(email, password):
     conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute(
+    row = conn.execute(
         "SELECT name FROM users WHERE email = ? AND password = ?",
         (email.lower().strip(), hash_password(password))
-    )
-    row = c.fetchone()
+    ).fetchone()
     conn.close()
-    if row:
-        return True, row[0]
-    return False, "Invalid email or password."
+    return (True, row[0]) if row else (False, "Invalid email or password.")
 
 init_db()
 
-# ---------- SESSION DEFAULTS ----------
-if "logged_in"  not in st.session_state: st.session_state.logged_in  = False
-if "username"   not in st.session_state: st.session_state.username   = ""
-if "auth_mode"  not in st.session_state: st.session_state.auth_mode  = None
+# =========================================================
+# SESSION DEFAULTS
+# =========================================================
+for k, v in {"logged_in": False, "username": "", "auth_mode": None}.items():
+    st.session_state.setdefault(k, v)
 
-# ---------- GLOBAL CSS ----------
+# =========================================================
+# CSS
+# =========================================================
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600&family=Courier+Prime&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,700;0,900;1,700;1,900&family=Manrope:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
-#MainMenu, footer, header, [data-testid="stToolbar"], .stDeployButton { visibility: hidden !important; display: none !important; }
-
-body, .stApp {
-    background: #0a0a0b !important;
-    color: #e8e4dc !important;
-    font-family: 'DM Sans', sans-serif !important;
+:root {
+    --red:    #c0392b;
+    --red2:   #e74c3c;
+    --bg:     #09090b;
+    --border: #2a2a38;
+    --muted:  #9a9aaa;
+    --muted2: #8a8a9a;
+    --serif:  'Fraunces', Georgia, serif;
+    --sans:   'Manrope', sans-serif;
+    --mono:   'IBM Plex Mono', monospace;
 }
+
+/* Hide Streamlit chrome */
+#MainMenu, footer, header,
+[data-testid="stToolbar"],
+[data-testid="stDecoration"],
+.stDeployButton { visibility: hidden !important; display: none !important; }
+
+/* Base */
+html, body, .stApp {
+    background: var(--bg) !important;
+    color: #eae5dc !important;
+    font-family: var(--sans) !important;
+}
+
+.block-container { max-width: 100% !important; padding-top: 0 !important; }
+
+/* Subtle background glow */
 .stApp::before {
     content: '';
-    position: fixed; top: 0; left: 0; right: 0; height: 500px;
-    background: radial-gradient(ellipse 80% 55% at 50% 0%, rgba(192,57,43,0.2) 0%, transparent 70%);
-    pointer-events: none; z-index: 0;
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background: radial-gradient(ellipse 55% 40% at 10% 5%, rgba(192,57,43,0.11) 0%, transparent 60%);
 }
 
-/* ── NAVBAR ── */
-.dracu-nav {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 52px;
-    background: rgba(10,10,11,0.96);
-    border-bottom: 1px solid #2a2a2e;
-    position: sticky; top: 0; z-index: 99;
-    backdrop-filter: blur(18px);
+/* ── Typography classes ── */
+.eyebrow {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--red2); letter-spacing: 2.5px;
+    text-transform: uppercase; display: block; margin-bottom: 16px;
 }
-.dracu-brand {
-    font-family: 'Playfair Display', serif;
-    font-size: 26px; font-weight: 900;
-    color: #fff; letter-spacing: -0.5px;
-}
-.dracu-brand span { color: #e74c3c; }
-.nav-tagline { font-size: 11px; color: #666; letter-spacing: 1.4px; text-transform: uppercase; margin-top: 2px; }
-.nav-user-badge {
-    background: rgba(192,57,43,0.14);
-    border: 1px solid rgba(192,57,43,0.35);
-    border-radius: 100px; padding: 6px 16px;
-    font-size: 13px; color: #f07a6a; font-weight: 600;
-}
-
-/* ── HERO ── */
-.hero-wrap { text-align: center; padding: 96px 24px 56px; }
-.hero-eyebrow {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 6px 20px;
-    background: rgba(192,57,43,0.1); border: 1px solid rgba(192,57,43,0.3);
-    border-radius: 100px; font-size: 11px; color: #e74c3c;
-    letter-spacing: 2px; text-transform: uppercase; margin-bottom: 30px;
-    font-family: 'Courier Prime', monospace;
-}
-.hero-dot { width: 6px; height: 6px; border-radius: 50%; background: #e74c3c; display: inline-block; animation: blink 2s infinite; }
 .hero-title {
-    font-family: 'Playfair Display', serif;
-    font-size: clamp(50px, 7vw, 96px);
+    font-family: var(--serif);
+    font-size: clamp(42px, 5vw, 76px);
     font-weight: 900; line-height: 0.95;
-    letter-spacing: -3px; color: #ffffff;
-    margin-bottom: 26px;
+    letter-spacing: -2px; color: #fff;
+    margin: 0 0 24px 0; display: block;
 }
-.hero-title em { color: #e74c3c; font-style: italic; display: block; }
+.hero-title .acc { color: var(--red2); font-style: italic; }
+
+/* FIX: was #3a3a48 — now readable */
+.hero-title .dim { color: #b0a898; }
+
 .hero-sub {
-    font-size: 19px; color: #aaa; max-width: 560px;
-    margin: 0 auto 48px; line-height: 1.75; font-weight: 300;
+    font-size: 17px;
+    color: #a0a0b0;
+    line-height: 1.65;
+    font-weight: 400;
+    display: block; margin-bottom: 8px;
+    max-width: 90%;
 }
 
-/* ── STATS ── */
-.stats-row { display: flex; justify-content: center; gap: 64px; flex-wrap: wrap; margin-top: 52px; padding-top: 44px; border-top: 1px solid #222; }
-.stat-box { text-align: center; }
-.stat-num { font-family: 'Playfair Display', serif; font-size: 46px; font-weight: 900; color: #fff; line-height: 1; }
-.stat-num span { color: #e74c3c; }
-.stat-label { font-size: 11px; color: #666; letter-spacing: 1.3px; text-transform: uppercase; margin-top: 6px; }
-
-/* ── SECTION HEADERS ── */
-.section-label { font-size: 11px; color: #e74c3c; letter-spacing: 2.5px; text-transform: uppercase; font-family: 'Courier Prime', monospace; margin-bottom: 12px; }
-.section-title { font-family: 'Playfair Display', serif; font-size: clamp(32px, 4vw, 52px); font-weight: 900; color: #ffffff; letter-spacing: -1.5px; line-height: 1.08; margin-bottom: 40px; }
-
-/* ── FEATURE CARDS ── */
-.feat-card {
-    background: #16161a; border: 1px solid #272729;
-    border-radius: 14px; padding: 36px 30px; height: 100%;
-    transition: border-color 0.25s, transform 0.25s;
+/* FIX: stat values — ensure full visibility */
+.stat-val {
+    font-family: var(--serif); font-size: 38px;
+    font-weight: 900; color: #ffffff; line-height: 1;
+    display: block; margin-bottom: 4px;
 }
-.feat-card:hover { border-color: rgba(192,57,43,0.45); transform: translateY(-3px); }
-.feat-icon { font-size: 30px; margin-bottom: 18px; display: block; }
-.feat-title { font-family: 'Playfair Display', serif; font-size: 21px; font-weight: 700; color: #f5f0e8; margin-bottom: 10px; }
-.feat-desc { font-size: 15px; color: #888; line-height: 1.8; }
+.stat-val span { color: var(--red2); }
 
-/* ── AUTH CARD ── */
-.auth-card {
-    background: #15151a; border: 1px solid #2a2a2e;
-    border-radius: 18px; padding: 40px 38px 24px;
-    max-width: 460px; margin: 0 auto;
+/* FIX: stat key — was too dark, now clearly visible */
+.stat-key {
+    font-family: var(--mono); font-size: 9px;
+    color: #9090a8;
+    letter-spacing: 2px;
+    text-transform: uppercase; margin-top: 4px; display: block;
 }
-.auth-title { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 900; color: #fff; margin-bottom: 4px; }
-.auth-sub { font-size: 15px; color: #888; margin-bottom: 4px; }
 
-/* ── INPUT FIELDS — cream background, BLACK text ── */
+/* FIX: right-label and nav-tag — readable grey */
+.right-label {
+    font-family: var(--mono); font-size: 9px;
+    color: #9090a8;
+    letter-spacing: 2.5px;
+    text-transform: uppercase; display: block; margin-bottom: 8px;
+}
+.right-heading {
+    font-family: var(--serif); font-size: 24px;
+    font-weight: 900; color: #fff; line-height: 1.1;
+    display: block; margin-bottom: 20px;
+}
+.auth-label {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--red2); letter-spacing: 2.5px;
+    text-transform: uppercase; display: block; margin-bottom: 8px;
+}
+.auth-heading {
+    font-family: var(--serif); font-size: 30px;
+    font-weight: 900; color: #fff; line-height: 1.05;
+    display: block; margin-bottom: 6px;
+}
+.auth-sub {
+    font-size: 14px;
+    color: #9a9aaa;
+    font-weight: 400;
+    line-height: 1.6;
+    display: block; margin-bottom: 20px;
+}
+.feat-name {
+    font-size: 14px; font-weight: 600; color: #e0dbd2;
+    display: block; margin-bottom: 4px;
+}
+.feat-desc {
+    font-size: 14px;
+    color: #9a9aaa;
+    line-height: 1.65;
+    font-weight: 400;
+    display: block;
+}
+.nav-brand {
+    font-family: var(--serif); font-size: 20px;
+    font-weight: 900; color: #fff; display: block;
+}
+.nav-brand span { color: var(--red2); font-style: italic; }
+
+/* FIX: nav-tag — was #3a3a48, now visible */
+.nav-tag {
+    font-family: var(--mono); font-size: 9px;
+    color: #9090a8;
+    letter-spacing: 2px;
+    text-transform: uppercase; display: block;
+}
+.nav-user {
+    font-family: var(--sans); font-size: 13px; color: #d06050;
+    font-weight: 500; background: rgba(192,57,43,0.09);
+    border: 1px solid rgba(192,57,43,0.22);
+    border-radius: 6px; padding: 5px 14px; display: inline-block;
+}
+.status-dot {
+    display: inline-block; width: 7px; height: 7px;
+    border-radius: 50%; background: #2ecc71;
+    box-shadow: 0 0 7px rgba(46,204,113,0.7); margin-right: 8px;
+}
+
+/* ── Inputs ── */
 .stTextInput > div > div > input {
-    background: #f4f1eb !important;
-    border: 1.5px solid #ccc8c0 !important;
-    border-radius: 9px !important;
-    color: #111111 !important;
-    font-family: 'DM Sans', sans-serif !important;
-    font-size: 15px !important;
-    font-weight: 500 !important;
-    padding: 12px 16px !important;
-    caret-color: #c0392b !important;
+    background: #f2ede6 !important;
+    border: 1.5px solid #cac4ba !important;
+    border-radius: 8px !important; color: #111 !important;
+    font-family: var(--sans) !important; font-size: 14px !important;
+    padding: 12px 14px !important; transition: all 0.2s !important;
 }
 .stTextInput > div > div > input:focus {
-    border-color: #c0392b !important;
-    background: #ffffff !important;
+    border-color: var(--red) !important; background: #fff !important;
     box-shadow: 0 0 0 3px rgba(192,57,43,0.12) !important;
-    color: #111111 !important;
 }
-.stTextInput > div > div > input::placeholder {
-    color: #b0a898 !important;
-    font-weight: 400 !important;
+.stTextInput > div > div > input::placeholder { color: #b5ada4 !important; }
+
+/* FIX: Password eye toggle — keep it inside the input box */
+.stTextInput > div > div {
+    position: relative !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+}
+.stTextInput > div > div > div[data-testid="stInputRightElement"] {
+    position: absolute !important;
+    right: 10px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    width: auto !important;
+    height: auto !important;
+}
+.stTextInput > div > div > div[data-testid="stInputRightElement"] button {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: #888 !important;
+    padding: 4px !important;
+    border-radius: 4px !important;
+    transition: color 0.2s !important;
+}
+.stTextInput > div > div > div[data-testid="stInputRightElement"] button:hover {
+    color: #444 !important;
+    background: rgba(0,0,0,0.06) !important;
+    box-shadow: none !important;
+}
+.stTextInput > div > div > div[data-testid="stInputRightElement"] button svg {
+    width: 16px !important;
+    height: 16px !important;
 }
 .stTextInput label {
-    color: #b0a898 !important; font-size: 12px !important;
-    font-weight: 600 !important; letter-spacing: 0.9px !important;
-    text-transform: uppercase !important;
+    color: #908880 !important; font-size: 10px !important;
+    font-weight: 600 !important; letter-spacing: 1.3px !important;
+    text-transform: uppercase !important; font-family: var(--mono) !important;
 }
 
-/* ── BUTTONS ── */
-.stButton > button {
-    background: linear-gradient(135deg, #b03020, #e74c3c) !important;
-    color: #fff !important; border: none !important;
-    border-radius: 9px !important; font-weight: 600 !important;
-    font-family: 'DM Sans', sans-serif !important;
-    font-size: 15px !important; width: 100% !important;
-    padding: 13px !important; letter-spacing: 0.2px !important;
-    transition: all 0.2s !important;
+/* ── Buttons ── */
+.btn-primary .stButton > button {
+    background: var(--red) !important; color: #fff !important;
+    border: none !important; border-radius: 7px !important;
+    font-family: var(--sans) !important; font-weight: 600 !important;
+    font-size: 14px !important; padding: 11px 24px !important;
+    width: 100% !important; transition: all 0.2s !important;
 }
-.stButton > button:hover {
-    box-shadow: 0 0 28px rgba(231,76,60,0.45) !important;
+.btn-primary .stButton > button:hover {
+    background: var(--red2) !important;
+    box-shadow: 0 0 26px rgba(192,57,43,0.4) !important;
     transform: translateY(-1px) !important;
 }
-.ghost-btn .stButton > button {
-    background: transparent !important;
-    border: 1px solid #303030 !important;
-    color: #999 !important;
-    font-size: 13px !important;
-    padding: 10px !important;
+.btn-ghost .stButton > button {
+    background: transparent !important; color: #b0b0c0 !important;
+    border: 1px solid #3a3a50 !important; border-radius: 7px !important;
+    font-family: var(--sans) !important; font-weight: 400 !important;
+    font-size: 14px !important; padding: 11px 20px !important;
+    width: 100% !important; transition: all 0.2s !important;
 }
-.ghost-btn .stButton > button:hover {
+.btn-ghost .stButton > button:hover {
+    border-color: #666 !important; color: #ddd !important;
     background: rgba(255,255,255,0.04) !important;
-    box-shadow: none !important; color: #ddd !important;
-    border-color: #555 !important;
+    box-shadow: none !important; transform: none !important;
+}
+.btn-full .stButton > button {
+    background: var(--red) !important; color: #fff !important;
+    border: none !important; border-radius: 8px !important;
+    font-family: var(--sans) !important; font-weight: 600 !important;
+    font-size: 14px !important; padding: 13px !important;
+    width: 100% !important; transition: all 0.2s !important;
+}
+.btn-full .stButton > button:hover {
+    background: var(--red2) !important;
+    box-shadow: 0 0 26px rgba(192,57,43,0.4) !important;
+    transform: translateY(-1px) !important;
+}
+.btn-link .stButton > button {
+    background: transparent !important; color: #9a9aaa !important;
+    border: none !important; font-size: 12px !important;
+    font-weight: 400 !important; padding: 4px 0 !important;
+    width: auto !important; text-decoration: underline !important;
+    text-underline-offset: 3px !important; box-shadow: none !important;
+}
+.btn-link .stButton > button:hover {
+    color: #ccc !important; background: transparent !important;
+    box-shadow: none !important; transform: none !important;
 }
 
-/* ── ALERTS ── */
-.stAlert { border-radius: 9px !important; }
+/* Column gap */
+[data-testid="stHorizontalBlock"] { gap: 0 !important; }
 
-/* ── HOW IT WORKS ── */
-.step-num { font-family: 'Playfair Display', serif; font-size: 60px; font-weight: 900; color: #e74c3c; line-height: 1; margin-bottom: 14px; }
-.step-title { font-size: 16px; font-weight: 600; color: #e0dbd2; margin-bottom: 8px; }
-.step-desc { font-size: 14px; color: #777; line-height: 1.8; }
+/* FIX: hr — was #1f1f28, now clearly visible */
+hr { border-color: #3a3a50 !important; }
 
-/* ── FOOTER ── */
-.dracu-footer { text-align: center; padding: 34px; border-top: 1px solid #1e1e22; color: White; font-size: 13px; margin-top: 40px; }
-.dracu-footer strong { color: White; }
-
-hr { border-color: #1e1e22 !important; }
-@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.stAlert { border-radius: 8px !important; }
 </style>
 """, unsafe_allow_html=True)
+
+# =========================================================
+# HELPERS
+# =========================================================
+def logout():
+    st.session_state.logged_in = False
+    st.session_state.username  = ""
+    st.session_state.auth_mode = None
+    st.rerun()
 
 
 # =========================================================
 # NAVBAR
 # =========================================================
 def render_navbar():
-    right = f'<span class="nav-user-badge">👤 {st.session_state.username}</span>' if st.session_state.logged_in else ""
-    st.markdown(f"""
-    <div class="dracu-nav">
-        <div>
-            <div class="dracu-brand">Dracu<span>-Law</span></div>
-            <div class="nav-tagline">AI Legal Intelligence Engine</div>
-        </div>
-        <div>{right}</div>
-    </div>
-    """, unsafe_allow_html=True)
+    n1, _, n2 = st.columns([3, 3, 2])
+    with n1:
+        st.markdown("<div class='nav-brand'>Dracu<span>-Law</span></div>", unsafe_allow_html=True)
+        st.markdown("<div class='nav-tag'>AI Legal Intelligence</div>", unsafe_allow_html=True)
+    with n2:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.session_state.logged_in:
+            st.markdown(f"<div class='nav-user'>👤 {st.session_state.username}</div>", unsafe_allow_html=True)
+        else:
+            st.markdown(
+                "<div style='font-family:IBM Plex Mono,monospace;font-size:10px;"
+                "color:#9090a8;"
+                "letter-spacing:1.5px;text-transform:uppercase;'>"
+                "<span class='status-dot'></span>Systems Operational</div>",
+                unsafe_allow_html=True
+            )
+    st.markdown("---")
 
 
 # =========================================================
-# HERO
+# LEFT COLUMN — HERO
 # =========================================================
-def render_hero():
+def render_left():
+    st.markdown("<br>", unsafe_allow_html=True)
+
     if st.session_state.logged_in:
         first = st.session_state.username.split()[0]
-        st.markdown(f"""
-        <div class="hero-wrap">
-            <div class="hero-eyebrow"><span class="hero-dot"></span> Welcome back, {first}</div>
-            <div class="hero-title">Ready to<em>Analyze.</em></div>
-            <div class="hero-sub">Your AI legal engine is standing by. Upload a contract and get instant risk scoring, clause flagging, and smart rewrites.</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # CHANGE 1: Analyzer + Logout buttons side-by-side in one row
-        _, c2, _ = st.columns([1, 1.4, 1])
+        st.markdown(f"<span class='eyebrow'>⚡ Welcome back, {first}</span>", unsafe_allow_html=True)
+        st.markdown("<span class='hero-title'>Ready to<br><span class='acc'>Analyze.</span></span>", unsafe_allow_html=True)
+        st.markdown(
+            "<span class='hero-sub'>Your AI legal engine is standing by. "
+            "Upload a contract to get instant risk scoring, clause flagging, and smart rewrites.</span>",
+            unsafe_allow_html=True
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
+        c1, c2, _ = st.columns([2, 1.5, 2])
+        with c1:
+            st.markdown('<div class="btn-primary">', unsafe_allow_html=True)
+            if st.button("Open Analyzer →", key="hero_open"):
+                st.switch_page("pages/app.py")
+            st.markdown('</div>', unsafe_allow_html=True)
         with c2:
-            btn_col1, btn_col2 = st.columns(2, gap="small")
-            with btn_col1:
-                if st.button("Open Analyzer", key="hero_analyze"):
-                    st.switch_page("pages/app.py")
-            with btn_col2:
-                st.markdown('<div class="ghost-btn">', unsafe_allow_html=True)
-                if st.button("Log Out", key="hero_logout"):
-                    st.session_state.logged_in = False
-                    st.session_state.username  = ""
-                    st.session_state.auth_mode = None
-                    st.rerun()
-                st.markdown('</div>', unsafe_allow_html=True)
-
-        st.markdown("""
-        <div class="stats-row">
-            <div class="stat-box"><div class="stat-num">98<span>%</span></div><div class="stat-label">Clause Detection</div></div>
-            <div class="stat-box"><div class="stat-num">5<span>s</span></div><div class="stat-label">Avg Analysis Time</div></div>
-        </div>
-        """, unsafe_allow_html=True)
+            st.markdown('<div class="btn-ghost">', unsafe_allow_html=True)
+            if st.button("Log Out", key="hero_logout"):
+                logout()
+            st.markdown('</div>', unsafe_allow_html=True)
 
     else:
-        st.markdown("""
-        <div class="hero-wrap">
-            <div class="hero-eyebrow"><span class="hero-dot"></span> AI Legal Intelligence Engine</div>
-            <div class="hero-title">Read Every Clause.<br><em>Miss Nothing.</em></div>
-            <div class="hero-sub">Dracu-Law dissects contracts with surgical precision — surfacing red flags, comparing versions, and rewriting dangerous clauses before you sign.</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("<span class='eyebrow'>⚖ AI Contract Intelligence</span>", unsafe_allow_html=True)
+        st.markdown(
+            "<span class='hero-title'>"
+            "<span class='dim'>Read every</span><br>"
+            "clause. <span class='acc'>Miss</span><br>"
+            "<span class='acc'>nothing.</span>"
+            "</span>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            "<span class='hero-sub'>"
+            "Dracu-Law dissects contracts with surgical precision — surfacing "
+            "<strong style='color:#c8c2b8;'>red flags</strong>, comparing versions, "
+            "and rewriting dangerous clauses before you sign."
+            "</span>",
+            unsafe_allow_html=True
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
 
-        _, c2, _ = st.columns([1.6, 1, 1.6])
-        with c2:
-            b1, b2 = st.columns(2)
-            with b1:
-                if st.button("Get Started", key="hero_signup"):
-                    st.session_state.auth_mode = "signup"
-                    st.rerun()
-            with b2:
-                # CHANGE 2: Sign In scrolls to auth section via JS anchor
-                if st.button("Sign In", key="hero_login"):
-                    st.session_state.auth_mode = "login"
-                    st.rerun()
-                    # JS scroll is handled below after rerun renders the anchor
-
-        st.markdown("""
-        <div class="stats-row">
-            <div class="stat-box"><div class="stat-num">98<span>%</span></div><div class="stat-label">Clause Detection</div></div>
-            <div class="stat-box"><div class="stat-num">5<span>s</span></div><div class="stat-label">Avg Analysis Time</div></div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # After rerun, if auth_mode is set, inject scroll JS
-        if st.session_state.auth_mode in ("login", "signup"):
-            st.markdown("""
-            <script>
-                window.addEventListener('load', function() {
-                    var el = document.getElementById('auth-section');
-                    if (el) { el.scrollIntoView({behavior: 'smooth'}); }
-                });
-            </script>
-            """, unsafe_allow_html=True)
-
-
-# =========================================================
-# AUTH FORMS
-# =========================================================
-def render_auth():
-    # CHANGE 2: Anchor div so Sign In button can scroll here
-    st.markdown('<div id="auth-section"></div>', unsafe_allow_html=True)
-    # Also inject scroll JS here so it fires after the DOM is ready
-    st.markdown("""
-    <script>
-        (function() {
-            function scrollToAuth() {
-                var el = document.getElementById('auth-section');
-                if (el) { el.scrollIntoView({behavior: 'smooth'}); }
-                else { setTimeout(scrollToAuth, 100); }
-            }
-            scrollToAuth();
-        })();
-    </script>
-    """, unsafe_allow_html=True)
-
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.divider()
-
-    _, c2, _ = st.columns([1, 1.5, 1])
-    with c2:
-        if st.session_state.auth_mode == "login":
-            st.markdown("""
-            <div class="auth-card">
-                <div class="auth-title">Welcome back.</div>
-                <div class="auth-sub">Sign in to your Dracu-Law account to continue.</div>
-            </div>
-            """, unsafe_allow_html=True)
-            st.markdown("<br>", unsafe_allow_html=True)
-
-            email    = st.text_input("Email", placeholder="you@example.com", key="login_email")
-            password = st.text_input("Password", placeholder="Your password", type="password", key="login_pass")
-            st.markdown("<br>", unsafe_allow_html=True)
-
-            if st.button("Sign In →", key="do_login"):
-                if not email or not password:
-                    st.error("Please fill in all fields.")
-                else:
-                    ok, result = login_user(email, password)
-                    if ok:
-                        st.session_state.logged_in = True
-                        st.session_state.username  = result
-                        st.session_state.auth_mode = None
-                        st.success(f"Welcome back, {result.split()[0]}! 👋")
-                        st.rerun()
-                    else:
-                        st.error(f"❌ {result}")
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown('<div class="ghost-btn">', unsafe_allow_html=True)
-            if st.button("No account yet? Sign up →", key="switch_signup"):
+        c1, c2, _ = st.columns([2, 1.6, 2])
+        with c1:
+            st.markdown('<div class="btn-primary">', unsafe_allow_html=True)
+            if st.button("Get Started →", key="hero_signup"):
                 st.session_state.auth_mode = "signup"
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
-
-        elif st.session_state.auth_mode == "signup":
-            st.markdown("""
-            <div class="auth-card">
-                <div class="auth-title">Create account.</div>
-                <div class="auth-sub">Start analyzing contracts in seconds — it's free.</div>
-            </div>
-            """, unsafe_allow_html=True)
-            st.markdown("<br>", unsafe_allow_html=True)
-
-            name     = st.text_input("Full Name", placeholder="Jane Smith", key="signup_name")
-            email    = st.text_input("Email", placeholder="you@example.com", key="signup_email")
-            password = st.text_input("Password", placeholder="Min. 6 characters", type="password", key="signup_pass")
-            st.markdown("<br>", unsafe_allow_html=True)
-
-            if st.button("Create Account →", key="do_signup"):
-                if not name or not email or len(password) < 6:
-                    st.error("❌ Please fill in all fields. Password must be at least 6 characters.")
-                else:
-                    ok, msg = register_user(name, email, password)
-                    if ok:
-                        st.session_state.logged_in = True
-                        st.session_state.username  = name
-                        st.session_state.auth_mode = None
-                        st.success(f"Account created! Welcome, {name.split()[0]} ⚡")
-                        st.rerun()
-                    else:
-                        st.error(f"❌ {msg}")
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown('<div class="ghost-btn">', unsafe_allow_html=True)
-            if st.button("Already have an account? Sign in →", key="switch_login"):
+        with c2:
+            st.markdown('<div class="btn-ghost">', unsafe_allow_html=True)
+            if st.button("Sign In", key="hero_login"):
                 st.session_state.auth_mode = "login"
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
+        # Stats
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown("---")
+        s1, s2, s3 = st.columns(3)
+        with s1:
+            st.markdown("<span class='stat-val'>98<span>%</span></span>", unsafe_allow_html=True)
+            st.markdown("<span class='stat-key'>Clause Detection</span>", unsafe_allow_html=True)
+        with s2:
+            st.markdown("<span class='stat-val'>&lt;10<span>s</span></span>", unsafe_allow_html=True)
+            st.markdown("<span class='stat-key'>Analysis Time</span>", unsafe_allow_html=True)
+        with s3:
+            st.markdown("<span class='stat-val'>3<span>x</span></span>", unsafe_allow_html=True)
+            st.markdown("<span class='stat-key'>Faster Review</span>", unsafe_allow_html=True)
+
 
 # =========================================================
-# FEATURES
+# RIGHT COLUMN — Feature List
 # =========================================================
-def render_features():
-    st.divider()
-    st.markdown("""
-    <div style="padding: 60px 0 0;">
-        <div class="section-label">// What we do</div>
-        <div class="section-title">Three tools.<br>Total clarity.</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    cards = [
-        ("🔬", "Deep Analysis",
-         "Upload any PDF contract and get an instant risk score from 1–10, flagged clauses, a plain-English summary, and actionable suggestions — all in seconds."),
-        ("⚖️", "Contract Comparison",
-         "Pit two contracts against each other. The AI highlights key differences and declares a clear winner for the signer's best interests."),
-        ("✍️", "Smart Rewriting",
-         "Select the clauses that concern you. Dracu-Law rewrites them in your favour and exports a polished Word document ready to negotiate with."),
+def render_feature_list():
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<span class='right-label'>// What's inside</span>", unsafe_allow_html=True)
+    st.markdown(
+        "<span class='right-heading'>Everything you need<br>to sign with confidence.</span>",
+        unsafe_allow_html=True
+    )
+    features = [
+        ("🔬", "Deep Contract Analysis",
+         "Instant risk score 1–10, flagged clauses, plain-English summary and actionable suggestions."),
+        ("⚖️", "Side-by-Side Comparison",
+         "Pit two contracts against each other. AI highlights differences and picks the better deal."),
+        ("✍️", "Smart Clause Rewriting",
+         "Select risky clauses, get AI rewrites in your favour, download a polished Word document."),
     ]
-    for col, (icon, title, desc) in zip(st.columns(3, gap="medium"), cards):
-        with col:
-            st.markdown(f"""
-            <div class="feat-card">
-                <span class="feat-icon">{icon}</span>
-                <div class="feat-title">{title}</div>
-                <div class="feat-desc">{desc}</div>
-            </div>
-            """, unsafe_allow_html=True)
+    for icon, name, desc in features:
+        st.markdown("---")
+        ic, tx = st.columns([1, 7])
+        with ic:
+            st.markdown(
+                f"<div style='background:rgba(192,57,43,0.09);border:1px solid rgba(192,57,43,0.2);"
+                f"border-radius:8px;width:38px;height:38px;display:flex;align-items:center;"
+                f"justify-content:center;font-size:17px;'>{icon}</div>",
+                unsafe_allow_html=True
+            )
+        with tx:
+            st.markdown(f"<span class='feat-name'>{name}</span>", unsafe_allow_html=True)
+            st.markdown(f"<span class='feat-desc'>{desc}</span>", unsafe_allow_html=True)
+
+
+# =========================================================
+# RIGHT COLUMN — Login Form
+# =========================================================
+def render_login_form():
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<span class='auth-label'>// Sign in</span>", unsafe_allow_html=True)
+    st.markdown("<span class='auth-heading'>Welcome back.</span>", unsafe_allow_html=True)
+    st.markdown("<span class='auth-sub'>Sign in to your Dracu-Law account to continue.</span>", unsafe_allow_html=True)
+
+    email    = st.text_input("Email",    placeholder="you@example.com", key="login_email")
+    password = st.text_input("Password", placeholder="Your password", type="password", key="login_pass")
     st.markdown("<br>", unsafe_allow_html=True)
 
+    st.markdown('<div class="btn-full">', unsafe_allow_html=True)
+    if st.button("Sign In →", key="do_login"):
+        if not email or not password:
+            st.error("Please fill in all fields.")
+        else:
+            ok, result = login_user(email, password)
+            if ok:
+                st.session_state.logged_in = True
+                st.session_state.username  = result
+                st.session_state.auth_mode = None
+                st.rerun()
+            else:
+                st.error(f"❌ {result}")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# =========================================================
-# HOW IT WORKS
-# =========================================================
-def render_how():
-    st.divider()
-    st.markdown("""
-    <div style="padding: 40px 0 0;">
-        <div class="section-label">// How it works</div>
-        <div class="section-title">Four steps to confidence.</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    steps = [
-        ("01", "Upload Your Contract",  "Drop any PDF — NDAs, employment agreements, leases, service contracts — into the analyzer."),
-        ("02", "AI Scans Every Clause", "Our LLM engine reads every sentence, scores risk 1–10, and maps problem areas with precision."),
-        ("03", "Review Findings",       "A color-coded dashboard surfaces red flags and suggestions. Compare two contracts side-by-side if needed."),
-        ("04", "Export Improved Draft", "Choose which clauses to fix and download a rewritten contract as a polished Word document."),
-    ]
-    for col, (num, title, desc) in zip(st.columns(4, gap="large"), steps):
-        with col:
-            st.markdown(f"""
-            <div style="padding: 16px 4px;">
-                <div class="step-num">{num}</div>
-                <div class="step-title">{title}</div>
-                <div class="step-desc">{desc}</div>
-            </div>
-            """, unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<div class="btn-link">', unsafe_allow_html=True)
+    if st.button("No account? Create one →", key="switch_signup"):
+        st.session_state.auth_mode = "signup"
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# =========================================================
+# RIGHT COLUMN — Signup Form
+# =========================================================
+def render_signup_form():
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<span class='auth-label'>// Create account</span>", unsafe_allow_html=True)
+    st.markdown("<span class='auth-heading'>Start for free.</span>", unsafe_allow_html=True)
+    st.markdown("<span class='auth-sub'>Analyze your first contract in under a minute.</span>", unsafe_allow_html=True)
+
+    name     = st.text_input("Full Name", placeholder="Jane Smith",        key="signup_name")
+    email    = st.text_input("Email",     placeholder="you@example.com",   key="signup_email")
+    password = st.text_input("Password",  placeholder="Min. 6 characters", type="password", key="signup_pass")
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    st.markdown('<div class="btn-full">', unsafe_allow_html=True)
+    if st.button("Create Account →", key="do_signup"):
+        if not name or not email or len(password) < 6:
+            st.error("❌ Fill in all fields. Password must be at least 6 characters.")
+        else:
+            ok, msg = register_user(name, email, password)
+            if ok:
+                st.session_state.logged_in = True
+                st.session_state.username  = name
+                st.session_state.auth_mode = None
+                st.rerun()
+            else:
+                st.error(f"❌ {msg}")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<div class="btn-link">', unsafe_allow_html=True)
+    if st.button("Already have an account? Sign in →", key="switch_login"):
+        st.session_state.auth_mode = "login"
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 # =========================================================
 # FOOTER
 # =========================================================
 def render_footer():
-    st.divider()
-    st.markdown("""
-    <div class="dracu-footer">
-        ⚖️ <strong>Dracu-Law</strong> &nbsp;·&nbsp; Powered by <strong>Groq LLMs</strong> &nbsp;·&nbsp; Built with <strong>Streamlit</strong><br>
-        <span style="font-size:11px;color:White;">AI-generated analysis is not a substitute for professional legal advice.</span>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown(
+        "<div style='text-align:center;padding:16px 0 24px;"
+        "font-family:IBM Plex Mono,monospace;font-size:11px;"
+        "color:#9090a8;letter-spacing:0.5px;'>"
+        "⚖️ DRACU-LAW &nbsp;·&nbsp; POWERED BY GROQ &nbsp;·&nbsp; BUILT WITH STREAMLIT<br>"
+        "<span style='font-size:10px;color:#7a7a9a;'>AI analysis is not a substitute for professional legal advice.</span>"
+        "</div>",
+        unsafe_allow_html=True
+    )
 
 
 # =========================================================
 # MAIN
 # =========================================================
 render_navbar()
-render_hero()
 
-if not st.session_state.logged_in and st.session_state.auth_mode in ("login", "signup"):
-    render_auth()
-elif not st.session_state.logged_in:
-    render_features()
-    render_how()
+left, right = st.columns([6, 4], gap="small")
+
+with left:
+    render_left()
+
+with right:
+    st.markdown(
+        "<style>div[data-testid='stHorizontalBlock'] > div:nth-child(2) "
+        "{ border-left: 1px solid #2a2a40 !important; padding-left: 2rem !important; }</style>",
+        unsafe_allow_html=True
+    )
+    if st.session_state.auth_mode == "login":
+        render_login_form()
+    elif st.session_state.auth_mode == "signup":
+        render_signup_form()
+    else:
+        render_feature_list()
 
 render_footer()
